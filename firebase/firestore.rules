@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore.
+//
+// - Cualquier usuario logueado con Google puede crear su propio fichaje
+//   y cerrarlo (marcar salida), pero NO puede tocar los fichajes de otra
+//   persona ni editar horaEntrada una vez creado.
+// - Para leer TODOS los fichajes (el panel de administrador) hace falta
+//   que el email esté en la lista de administradores de más abajo.
+//
+// Reemplazá los emails de ejemplo por los del/los administradores reales.
+function esAdmin() {
+  return request.auth != null &&
+    request.auth.token.email in [
+      'admin1@ejemplo.com',
+      'admin2@ejemplo.com'
+    ];
+}
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /fichajes/{fichajeId} {
+
+      // Crear: solo tu propio fichaje, con horaSalida vacío.
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.horaSalida == null;
+
+      // Actualizar: solo para marcar TU salida (no se puede tocar horaEntrada).
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && resource.data.horaSalida == null
+        && request.resource.data.horaEntrada == resource.data.horaEntrada;
+
+      // Leer: tu propio historial, o cualquier fichaje si sos admin.
+      allow read: if request.auth != null
+        && (resource.data.uid == request.auth.uid || esAdmin());
+
+      // Nadie borra fichajes desde la app (evita alterar liquidaciones).
+      allow delete: if false;
+    }
+  }
+}
