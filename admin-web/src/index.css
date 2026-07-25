@@ -165,6 +165,90 @@ h1, h2 {
   outline-offset: 1px;
 }
 
+.input-filtro-etiqueta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--tinta-suave);
+  font-weight: 600;
+}
+
+.input-filtro {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--borde);
+  font-size: 14px;
+  background: #fff;
+  color: var(--tinta);
+  font-family: 'Inter', sans-serif;
+}
+.input-filtro:focus {
+  outline: 2px solid var(--verde);
+  outline-offset: 1px;
+}
+
+.resumen-barra {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.resumen-item {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.resumen-numero {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+.resumen-etiqueta {
+  font-size: 12px;
+  color: var(--tinta-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.resumen-en-curso {
+  border-color: var(--verde-suave);
+  background: var(--verde-suave);
+}
+.resumen-en-curso .resumen-numero,
+.resumen-en-curso .resumen-etiqueta {
+  color: var(--verde);
+}
+
+.celda-horas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.punto-en-curso {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--verde);
+  display: inline-block;
+  animation: pulso 1.6s ease-in-out infinite;
+}
+
+@keyframes pulso {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 .tabla-contenedor {
   background: #fff;
   border: 1px solid var(--borde);
