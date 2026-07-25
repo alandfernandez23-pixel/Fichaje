@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, updateDoc, deleteField } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import RelojVivo from './RelojVivo.jsx';
 import { exportarFichajesAExcel } from './exportarExcel.js';
 
 function aFechaLocal(date) {
-  // yyyy-mm-dd en horario local, para comparar con inputs type="date"
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
@@ -37,25 +36,28 @@ export default function Dashboard({ user }) {
   const [filtroFecha, setFiltroFecha] = useState('');
   const [filtroMes, setFiltroMes] = useState('');
   const [ahora, setAhora] = useState(new Date());
+  const [vista, setVista] = useState('activos'); // 'activos' | 'eliminados'
 
   useEffect(() => {
     const q = query(collection(db, 'fichajes'), orderBy('horaEntrada', 'desc'));
     const unsubscribe = onSnapshot(q, (snap) => {
-      setFichajes(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setFichajes(snap.docs.map((d) => ({ id: d.id, ref: d.ref, ...d.data() })));
     });
     return unsubscribe;
   }, []);
 
-  // Actualiza el reloj cada 30s para que las horas de fichajes "en curso"
-  // se vayan sumando sin que la persona tenga que refrescar la página.
   useEffect(() => {
     const id = setInterval(() => setAhora(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
 
+  const activos = useMemo(() => fichajes.filter((f) => !f.eliminado), [fichajes]);
+  const eliminados = useMemo(() => fichajes.filter((f) => f.eliminado), [fichajes]);
+  const listaBase = vista === 'activos' ? activos : eliminados;
+
   const filtrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
-    return fichajes.filter((f) => {
+    return listaBase.filter((f) => {
       if (texto) {
         const coincideTexto =
           f.nombre?.toLowerCase().includes(texto) ||
@@ -71,7 +73,7 @@ export default function Dashboard({ user }) {
 
       return true;
     });
-  }, [fichajes, busqueda, filtroFecha, filtroMes]);
+  }, [listaBase, busqueda, filtroFecha, filtroMes]);
 
   const resumen = useMemo(() => {
     let totalMs = 0;
@@ -98,6 +100,29 @@ export default function Dashboard({ user }) {
 
   const hayFiltrosActivos = busqueda || filtroFecha || filtroMes;
 
+  const eliminarFichaje = async (f) => {
+    const entradaTexto = f.horaEntrada
+      ? f.horaEntrada.toDate().toLocaleString('es-AR')
+      : '';
+    const ok = window.confirm(
+      `¿Eliminar el fichaje de ${f.nombre} (${entradaTexto})?\n\nQueda guardado en "Papelera" y se puede restaurar.`
+    );
+    if (!ok) return;
+    await updateDoc(f.ref, {
+      eliminado: true,
+      eliminadoEn: new Date(),
+      eliminadoPor: user.email || '',
+    });
+  };
+
+  const restaurarFichaje = async (f) => {
+    await updateDoc(f.ref, {
+      eliminado: deleteField(),
+      eliminadoEn: deleteField(),
+      eliminadoPor: deleteField(),
+    });
+  };
+
   return (
     <div className="dashboard">
       <header className="dashboard-header">
@@ -113,6 +138,24 @@ export default function Dashboard({ user }) {
           </button>
         </div>
       </header>
+
+      <div className="tabs-vista">
+        <button
+          className={`tab-boton ${vista === 'activos' ? 'tab-activa' : ''}`}
+          onClick={() => setVista('activos')}
+        >
+          Fichajes
+        </button>
+        <button
+          className={`tab-boton ${vista === 'eliminados' ? 'tab-activa' : ''}`}
+          onClick={() => setVista('eliminados')}
+        >
+          Papelera
+          {eliminados.length > 0 && (
+            <span className="tab-contador">{eliminados.length}</span>
+          )}
+        </button>
+      </div>
 
       <div className="dashboard-toolbar">
         <input
@@ -151,13 +194,15 @@ export default function Dashboard({ user }) {
             Limpiar filtros
           </button>
         )}
-        <button
-          className="boton-primario"
-          onClick={() => exportarFichajesAExcel(filtrados)}
-          disabled={filtrados.length === 0}
-        >
-          Descargar Excel
-        </button>
+        {vista === 'activos' && (
+          <button
+            className="boton-primario"
+            onClick={() => exportarFichajesAExcel(filtrados)}
+            disabled={filtrados.length === 0}
+          >
+            Descargar Excel
+          </button>
+        )}
       </div>
 
       <div className="resumen-barra">
@@ -171,7 +216,7 @@ export default function Dashboard({ user }) {
           <span className="resumen-numero">{formatDuracion(resumen.totalMs)}</span>
           <span className="resumen-etiqueta">horas totales</span>
         </div>
-        {resumen.enCurso > 0 && (
+        {vista === 'activos' && resumen.enCurso > 0 && (
           <div className="resumen-item resumen-en-curso">
             <span className="resumen-numero">{resumen.enCurso}</span>
             <span className="resumen-etiqueta">en curso ahora</span>
@@ -190,16 +235,26 @@ export default function Dashboard({ user }) {
               <th>Hora salida</th>
               <th>Horas</th>
               <th>Estado</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {filtrados.map((f) => (
-              <FilaFichaje key={f.id} fichaje={f} ahora={ahora} />
+              <FilaFichaje
+                key={f.id}
+                fichaje={f}
+                ahora={ahora}
+                vista={vista}
+                onEliminar={() => eliminarFichaje(f)}
+                onRestaurar={() => restaurarFichaje(f)}
+              />
             ))}
             {filtrados.length === 0 && (
               <tr>
-                <td colSpan={7} className="tabla-vacia">
-                  {hayFiltrosActivos
+                <td colSpan={8} className="tabla-vacia">
+                  {vista === 'eliminados'
+                    ? 'La papelera está vacía.'
+                    : hayFiltrosActivos
                     ? 'No hay fichajes que coincidan con el filtro.'
                     : 'Todavía no hay fichajes registrados.'}
                 </td>
@@ -212,7 +267,7 @@ export default function Dashboard({ user }) {
   );
 }
 
-function FilaFichaje({ fichaje, ahora }) {
+function FilaFichaje({ fichaje, ahora, vista, onEliminar, onRestaurar }) {
   const entrada = fichaje.horaEntrada?.toDate();
   const salida = fichaje.horaSalida?.toDate();
   const abierto = !salida;
@@ -227,12 +282,23 @@ function FilaFichaje({ fichaje, ahora }) {
       <td className="celda-mono">{salida ? salida.toLocaleTimeString('es-AR', { hour12: false }) : '—'}</td>
       <td className="celda-mono celda-horas">
         {formatDuracion(duracionMs)}
-        {abierto && <span className="punto-en-curso" title="En curso" />}
+        {abierto && vista === 'activos' && <span className="punto-en-curso" title="En curso" />}
       </td>
       <td>
         <span className={`etiqueta ${abierto ? 'etiqueta-abierto' : 'etiqueta-cerrado'}`}>
           {abierto ? 'En curso' : 'Cerrado'}
         </span>
+      </td>
+      <td className="celda-acciones">
+        {vista === 'activos' ? (
+          <button className="boton-eliminar" onClick={onEliminar} title="Eliminar">
+            Eliminar
+          </button>
+        ) : (
+          <button className="boton-restaurar" onClick={onRestaurar} title="Restaurar">
+            Restaurar
+          </button>
+        )}
       </td>
     </tr>
   );
