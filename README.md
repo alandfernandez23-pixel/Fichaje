@@ -2,12 +2,18 @@
 
 Sistema completo y gratuito de fichaje:
 
-- **`mobile/`** — App Flutter (Android + iOS). Login con Google, botón de huella
-  para fichar entrada/salida (verde = fichado, rojo = afuera).
+- **`employee-web/`** — Página web (sin instalación de apps) para que cada
+  persona fiche entrada y salida con un botón de huella. Estética rosa pastel,
+  con aviso para agregarla a la pantalla de inicio del celular como acceso
+  directo. Requiere login con Google antes de poder fichar.
 - **`admin-web/`** — Panel web en React. Ve todos los fichajes en tiempo real
-  (fecha, hora, minuto, segundo) y descarga un Excel para liquidaciones.
-- **`firebase/`** — Reglas de seguridad y configuración que conectan ambas apps
-  a la misma base de datos.
+  (fecha, hora, minuto, segundo) y descarga un Excel con las columnas Fecha,
+  Nombre, Mail, Hora de entrada y Hora de salida, listo para liquidaciones.
+- **`firebase/`** — Reglas de seguridad y configuración que conectan ambas
+  webs a la misma base de datos.
+- **`mobile/`** — (opcional, no necesario) App Flutter nativa equivalente a
+  `employee-web/`, por si en el futuro se prefiere una app instalable desde
+  Play Store / App Store en lugar de la web.
 
 Todo corre sobre el plan gratuito de Firebase (Spark), que alcanza de sobra
 para un grupo chico o mediano.

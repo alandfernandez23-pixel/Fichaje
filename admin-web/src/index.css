@@ -1,13 +1,13 @@
 :root {
-  --papel: #EEF1ED;
-  --tinta: #1B2B22;
-  --tinta-suave: #4B5A50;
-  --verde: #1F6F4A;
-  --verde-suave: #DCEAE1;
-  --rojo: #B3432B;
-  --rojo-suave: #F3E1DA;
-  --oro: #C08A2E;
-  --borde: #D6DBD3;
+  --papel: #FDF3F6;
+  --tinta: #5B4550;
+  --tinta-suave: #A98A96;
+  --verde: #C7688A;
+  --verde-suave: #F6DDE6;
+  --rojo: #B5657A;
+  --rojo-suave: #F3C6CE;
+  --oro: #C79A55;
+  --borde: #F0DCE3;
 
   font-family: 'Inter', system-ui, sans-serif;
   color-scheme: light;

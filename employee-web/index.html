@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Fichaje</title>
+
+  <meta name="theme-color" content="#F6D9E3" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Fichaje" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <div id="pantalla-carga" class="pantalla centrado">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Pantalla de login -->
+  <div id="pantalla-login" class="pantalla centrado oculto">
+    <div class="tarjeta">
+      <div class="icono-huella">
+        <svg viewBox="0 0 100 100" width="72" height="72">
+          <path d="M50 20 a30 30 0 0 1 30 30" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 32 a18 18 0 0 1 18 18" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 44 a6 6 0 0 1 6 6" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>Fichaje</h1>
+      <p>Iniciá sesión con tu cuenta de Google para registrar tu entrada y salida.</p>
+      <button id="btn-login" class="boton-primario">
+        <span>Continuar con Google</span>
+      </button>
+      <p id="error-login" class="texto-error oculto"></p>
+    </div>
+  </div>
+
+  <!-- Pantalla de fichaje (solo visible logueado) -->
+  <div id="pantalla-fichaje" class="pantalla oculto">
+    <header class="encabezado">
+      <span id="nombre-usuario" class="nombre-usuario"></span>
+      <button id="btn-logout" class="boton-texto">Salir</button>
+    </header>
+
+    <div class="centrado contenido-fichaje">
+      <button id="boton-huella" class="boton-huella" aria-label="Fichar entrada o salida">
+        <svg viewBox="0 0 100 100" width="64" height="64">
+          <path d="M50 18 a32 32 0 0 1 32 32" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 30 a20 20 0 0 1 20 20" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 42 a8 8 0 0 1 8 8" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 62 a12 12 0 0 1 -12 -12" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <p id="texto-estado" class="texto-estado">Cargando tu estado…</p>
+    </div>
+  </div>
+
+  <!-- Aviso de "instalar en pantalla de inicio" -->
+  <div id="aviso-instalar" class="aviso-instalar oculto">
+    <span id="texto-instalar"></span>
+    <button id="btn-cerrar-aviso" class="boton-cerrar-aviso" aria-label="Cerrar">✕</button>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
