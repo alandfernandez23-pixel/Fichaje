@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Código QR de fichaje · Más Que Pilates</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&family=Nunito:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Nunito', sans-serif;
+      background: #F4F1F3;
+      color: #3E3542;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .tarjeta {
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 45px -25px rgba(60, 50, 62, 0.45);
+    }
+    .tarjeta img.logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 22px;
+      margin: 0 0 4px;
+    }
+    p.sub {
+      color: #8C7F8F;
+      font-size: 14px;
+      margin: 0 0 24px;
+    }
+    #qr-contenedor {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    #qr-contenedor canvas {
+      border-radius: 16px;
+      border: 10px solid #F4F1F3;
+    }
+    p.instrucciones {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #3E3542;
+      margin: 0 0 24px;
+    }
+    button {
+      background: #5B505E;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 24px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { background: #453B48; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .tarjeta { box-shadow: none; max-width: 100%; }
+      button { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tarjeta">
+    <img class="logo" src="/icons/logo.png" alt="Más Que Pilates" />
+    <h1>Código de fichaje</h1>
+    <p class="sub">Más Que Pilates</p>
+    <div id="qr-contenedor">
+      <!-- El texto "data=MQP-FICHAJE-INGRESO" de acá abajo tiene que ser
+           EXACTAMENTE igual a la constante CODIGO_QR_VALIDO de
+           employee-web/app.js. Si cambiás uno, cambiá el otro. -->
+      <img
+        src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=MQP-FICHAJE-INGRESO&color=3E3542&bgcolor=FFFFFF"
+        alt="Código QR de fichaje"
+        width="260"
+        height="260"
+        onerror="this.parentElement.textContent = 'No se pudo generar el código. Revisá tu conexión a internet y recargá la página.';"
+      />
+    </div>
+    <p class="instrucciones">
+      Pegá esta hoja en la recepción del estudio. Si el GPS del celular
+      falla, las personas pueden tocar "Escanear código del local" en la
+      web de fichaje y apuntar la cámara acá para fichar igual.
+    </p>
+    <button onclick="window.print()">Imprimir</button>
+  </div>
+</body>
+</html>
