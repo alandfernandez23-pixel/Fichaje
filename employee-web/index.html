@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Más Que Pilates · Fichaje</title>
+
+  <meta name="theme-color" content="#5B505E" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="MQP Fichaje" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+</head>
+<body>
+
+  <div id="pantalla-carga" class="pantalla centrado">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Pantalla de login -->
+  <div id="pantalla-login" class="pantalla centrado oculto">
+    <div class="tarjeta">
+      <div class="logo-marca">
+        <img src="/icons/logo.png" alt="Más Que Pilates" />
+      </div>
+      <p class="subtitulo-marca">Más Que Pilates</p>
+      <h1>Fichaje</h1>
+      <p>Iniciá sesión con tu cuenta de Google para registrar tu entrada y salida.</p>
+      <button id="btn-login" class="boton-primario">
+        <span>Continuar con Google</span>
+      </button>
+      <p id="error-login" class="texto-error oculto"></p>
+    </div>
+  </div>
+
+  <!-- Pantalla de fichaje (solo visible logueado) -->
+  <div id="pantalla-fichaje" class="pantalla oculto">
+    <header class="encabezado">
+      <div class="encabezado-marca">
+        <div class="logo-mini">
+          <img src="/icons/logo.png" alt="Más Que Pilates" />
+        </div>
+        <span id="nombre-usuario" class="nombre-usuario"></span>
+      </div>
+      <button id="btn-logout" class="boton-texto">Salir</button>
+    </header>
+
+    <div class="centrado contenido-fichaje">
+      <button id="boton-huella" class="boton-huella" aria-label="Fichar entrada o salida">
+        <svg viewBox="0 0 100 100" width="64" height="64">
+          <path d="M50 18 a32 32 0 0 1 32 32" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 30 a20 20 0 0 1 20 20" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 42 a8 8 0 0 1 8 8" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M50 62 a12 12 0 0 1 -12 -12" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <p id="texto-estado" class="texto-estado">Cargando tu estado…</p>
+      <button id="btn-escanear" class="boton-texto boton-escanear">
+        ¿No podés fichar por GPS? Escaneá el código del local
+      </button>
+    </div>
+  </div>
+
+  <!-- Pantalla de escaneo de QR (respaldo cuando falla el GPS) -->
+  <div id="pantalla-scanner" class="pantalla-scanner oculto">
+    <div class="scanner-encabezado">
+      <span>Apuntá la cámara al código del local</span>
+      <button id="btn-cerrar-scanner" class="boton-cerrar-aviso" aria-label="Cerrar">✕</button>
+    </div>
+    <video id="video-scanner" playsinline muted></video>
+    <canvas id="canvas-scanner" class="oculto"></canvas>
+    <p id="texto-scanner" class="texto-scanner"></p>
+  </div>
+
+  <!-- Aviso de "instalar en pantalla de inicio" -->
+  <div id="aviso-instalar" class="aviso-instalar oculto">
+    <span id="texto-instalar"></span>
+    <button id="btn-cerrar-aviso" class="boton-cerrar-aviso" aria-label="Cerrar">✕</button>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
