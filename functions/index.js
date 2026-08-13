@@ -19,8 +19,8 @@ const EMAILJS_SERVICE_ID = "service_7k9myip";
 const EMAILJS_PUBLIC_KEY = "DenrUpVwH3era9YKa";
 
 // Completar con los Template ID reales que crees en la Parte 2.
-const EMAILJS_TEMPLATE_NUEVA_SOLICITUD = "PEGAR_TEMPLATE_NUEVA_SOLICITUD";
-const EMAILJS_TEMPLATE_REEMPLAZO = "PEGAR_TEMPLATE_REEMPLAZO";
+const EMAILJS_TEMPLATE_NUEVA_SOLICITUD = "template_lxy3qul";
+const EMAILJS_TEMPLATE_REEMPLAZO = "template_hgioun7";
 
 async function enviarEmail(templateId, params, privateKey) {
   if (templateId.startsWith("PEGAR_")) {
