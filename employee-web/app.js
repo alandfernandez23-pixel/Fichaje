@@ -10,6 +10,8 @@ import {
   getFirestore,
   collection,
   addDoc,
+  doc,
+  setDoc,
   query,
   where,
   onSnapshot,
@@ -18,6 +20,11 @@ import {
   updateDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getMessaging,
+  getToken,
+  isSupported,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 // Pegá acá la misma configuración que usás en admin-web/src/firebase.js
 // (Firebase → Configuración del proyecto → Tus apps → Web)
@@ -118,6 +125,10 @@ onAuthStateChanged(auth, (user) => {
     unsubscribeSolicitudes();
     unsubscribeSolicitudes = null;
   }
+  if (typeof unsubscribeMisHorarios !== "undefined" && unsubscribeMisHorarios) {
+    unsubscribeMisHorarios();
+    unsubscribeMisHorarios = null;
+  }
 
   if (!user) {
     mostrarSolo(pantallaLogin);
@@ -129,6 +140,9 @@ onAuthStateChanged(auth, (user) => {
   escucharEstado(user);
   if (typeof escucharMisSolicitudes === "function") {
     escucharMisSolicitudes(user);
+  }
+  if (typeof escucharMisHorarios === "function") {
+    escucharMisHorarios(user);
   }
 });
 
@@ -171,6 +185,19 @@ function actualizarBoton() {
 
 // --- Registrar el fichaje en Firestore, sea cual sea el método de
 // verificación usado (ubicación GPS o código QR del local) ---
+function mostrarConfirmacionFichaje() {
+  const overlay = document.getElementById("confirmacion-fichaje");
+  if (!overlay) return;
+  if (navigator.vibrate) navigator.vibrate(60);
+  overlay.classList.remove("oculto", "saliendo");
+  // Reiniciar la animación por si se dispara dos veces seguidas.
+  void overlay.offsetWidth;
+  setTimeout(() => {
+    overlay.classList.add("saliendo");
+    setTimeout(() => overlay.classList.add("oculto"), 250);
+  }, 1100);
+}
+
 async function procesarFichaje(datosVerificacion) {
   const user = auth.currentUser;
   if (!user) return;
@@ -182,6 +209,7 @@ async function procesarFichaje(datosVerificacion) {
     } else {
       await ficharEntrada(user, datosVerificacion);
     }
+    mostrarConfirmacionFichaje();
   } catch (err) {
     console.error(err);
     textoEstado.textContent = "Hubo un problema al fichar. Probá de nuevo.";
@@ -430,43 +458,67 @@ if ("serviceWorker" in navigator) {
 // ============================================================
 // Mi espacio: ánimo del día, comentarios/ideas y solicitudes
 // de vacaciones o licencia (con certificado si es licencia).
+//
+// Nota: el aviso por mail a los administradores ahora lo manda una
+// Cloud Function del lado del servidor (avisarNuevaSolicitud), porque
+// el empleado no tiene permiso para leer la lista de admins desde acá.
 // ============================================================
 
-// --- Configuración de EmailJS (avisos por correo) ---
-// Completá estos 4 datos con los que te da tu cuenta gratuita de
-// emailjs.com (Account → General, y Email Templates).
-const EMAILJS_PUBLIC_KEY = "DenrUpVwH3era9YKa";
-const EMAILJS_SERVICE_ID = "service_7k9myip";
-const EMAILJS_TEMPLATE_NUEVA_SOLICITUD = "template_9pq88u3";
-const EMAIL_ADMIN_NOTIFICACIONES = "alan.d.fernandez23@gmail.com";
+// Clave VAPID para notificaciones push: se genera en Firebase Console
+// (Configuración del proyecto → Cloud Messaging → Certificados push web).
+const VAPID_KEY = "PEGAR_VAPID_KEY_ACA";
 
-let emailjsListo = false;
-function inicializarEmailJS() {
-  if (typeof window.emailjs === "undefined") return;
-  if (EMAILJS_PUBLIC_KEY.startsWith("PEGAR_")) return;
-  window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-  emailjsListo = true;
-}
-window.addEventListener("load", inicializarEmailJS);
+const btnActivarAvisos = document.getElementById("btn-activar-avisos");
+const confirmacionAvisos = document.getElementById("confirmacion-avisos");
 
-async function avisarNuevaSolicitudPorMail(datos) {
-  if (!emailjsListo || EMAILJS_TEMPLATE_NUEVA_SOLICITUD.startsWith("PEGAR_")) return;
+btnActivarAvisos?.addEventListener("click", async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  confirmacionAvisos.classList.add("oculto");
+  btnActivarAvisos.setAttribute("disabled", "true");
+
   try {
-    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NUEVA_SOLICITUD, {
-      to_email: EMAIL_ADMIN_NOTIFICACIONES,
-      nombre_empleado: datos.nombre,
-      email_empleado: datos.email,
-      tipo_solicitud: datos.tipo === "licencia" ? "Licencia" : "Vacaciones",
-      fecha_inicio: datos.fechaInicio,
-      fecha_fin: datos.fechaFin,
-      comentario: datos.comentario || "(sin comentario)",
-    });
-  } catch (err) {
-    console.error("No se pudo enviar el aviso por mail:", err);
-  }
-}
+    if (VAPID_KEY.startsWith("PEGAR_")) {
+      throw new Error("falta configurar VAPID_KEY");
+    }
+    if (!(await isSupported())) {
+      throw new Error("no soportado en este navegador");
+    }
 
-// --- Elementos del DOM ---
+    const permiso = await Notification.requestPermission();
+    if (permiso !== "granted") {
+      confirmacionAvisos.textContent = "No diste el permiso de notificaciones, así que no vamos a poder avisarte.";
+      confirmacionAvisos.classList.remove("oculto");
+      confirmacionAvisos.classList.add("error");
+      return;
+    }
+
+    const registro = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registro });
+
+    if (!token) throw new Error("no se pudo obtener el token");
+
+    await setDoc(doc(db, "tokensNotificacion", token), {
+      token,
+      uid: user.uid,
+      email: user.email,
+      nombre: user.displayName || user.email,
+      actualizadoEn: serverTimestamp(),
+    });
+
+    confirmacionAvisos.textContent = "¡Listo! Vas a recibir avisos en este celular si te olvidás de fichar.";
+    confirmacionAvisos.classList.remove("oculto", "error");
+  } catch (err) {
+    console.error(err);
+    confirmacionAvisos.textContent = "No se pudo activar. Probá desde el navegador (Chrome/Safari), no desde otra app.";
+    confirmacionAvisos.classList.remove("oculto");
+    confirmacionAvisos.classList.add("error");
+  } finally {
+    btnActivarAvisos.removeAttribute("disabled");
+  }
+});
 const btnAbrirEspacio = document.getElementById("btn-abrir-espacio");
 const pantallaMiEspacio = document.getElementById("pantalla-mi-espacio");
 const btnCerrarEspacio = document.getElementById("btn-cerrar-espacio");
@@ -484,9 +536,27 @@ const inputCertificadoSolicitud = document.getElementById("input-certificado-sol
 const fechaInicioSolicitud = document.getElementById("fecha-inicio-solicitud");
 const fechaFinSolicitud = document.getElementById("fecha-fin-solicitud");
 const comentarioSolicitud = document.getElementById("comentario-solicitud");
+const listaClasesAfectadas = document.getElementById("lista-clases-afectadas");
 const btnEnviarSolicitud = document.getElementById("btn-enviar-solicitud");
 const confirmacionSolicitud = document.getElementById("confirmacion-solicitud");
 const listaMisSolicitudes = document.getElementById("lista-mis-solicitudes");
+
+function renderizarClasesAfectadas() {
+  if (!listaClasesAfectadas) return;
+  if (misHorarios.length === 0) {
+    listaClasesAfectadas.innerHTML = `<p class="tabla-vacia">No tenés clases cargadas todavía.</p>`;
+    return;
+  }
+  listaClasesAfectadas.innerHTML = misHorarios
+    .map(
+      (h, i) => `
+      <label class="check-clase-afectada">
+        <input type="checkbox" data-indice="${i}" />
+        ${DIAS_SEMANA[h.diaSemana]} ${h.horaInicio}-${h.horaFin} · ${h.tipoClase}
+      </label>`
+    )
+    .join("");
+}
 
 let tipoSolicitudActual = "vacaciones";
 let unsubscribeSolicitudes = null;
@@ -647,6 +717,19 @@ btnEnviarSolicitud.addEventListener("click", async () => {
       archivoNombre = archivo.name;
     }
 
+    const clasesAfectadas = [...listaClasesAfectadas.querySelectorAll('input[type="checkbox"]:checked')].map(
+      (chk) => {
+        const h = misHorarios[Number(chk.dataset.indice)];
+        return {
+          diaSemana: h.diaSemana,
+          diaTexto: DIAS_SEMANA[h.diaSemana],
+          horaInicio: h.horaInicio,
+          horaFin: h.horaFin,
+          tipoClase: h.tipoClase,
+        };
+      }
+    );
+
     const datosSolicitud = {
       uid: user.uid,
       email: user.email,
@@ -655,6 +738,7 @@ btnEnviarSolicitud.addEventListener("click", async () => {
       fechaInicio,
       fechaFin,
       comentario,
+      clasesAfectadas,
       archivoBase64,
       archivoTipo,
       archivoNombre,
@@ -663,12 +747,12 @@ btnEnviarSolicitud.addEventListener("click", async () => {
     };
 
     await addDoc(collection(db, "solicitudes"), datosSolicitud);
-    await avisarNuevaSolicitudPorMail(datosSolicitud);
 
     fechaInicioSolicitud.value = "";
     fechaFinSolicitud.value = "";
     comentarioSolicitud.value = "";
     inputCertificadoSolicitud.value = "";
+    listaClasesAfectadas.querySelectorAll('input[type="checkbox"]').forEach((chk) => (chk.checked = false));
     confirmacionSolicitud.textContent = "Solicitud enviada. Te vamos a avisar cuando la revisemos.";
     confirmacionSolicitud.classList.remove("error");
     confirmacionSolicitud.classList.remove("oculto");
@@ -687,7 +771,267 @@ btnEnviarSolicitud.addEventListener("click", async () => {
   }
 });
 
-// --- Listado de "mis solicitudes" con su estado en vivo ---
+// ============================================================
+// Mi calendario: solo mis propias clases (vista día / mes)
+// ============================================================
+
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MESES_NOMBRE = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+let misHorarios = [];
+let fechaCalendario = new Date();
+let vistaCalendarioActual = "dia";
+let unsubscribeMisHorarios = null;
+
+function escucharMisHorarios(user) {
+  const q = query(collection(db, "horarios"), where("email", "==", user.email), where("activo", "==", true));
+  unsubscribeMisHorarios = onSnapshot(q, (snap) => {
+    misHorarios = snap.docs.map((d) => d.data());
+    renderizarCalendario();
+    if (typeof actualizarSelectClases === "function") actualizarSelectClases();
+  });
+}
+
+function horariosDelDia(fecha) {
+  const diaSemana = fecha.getDay();
+  return misHorarios
+    .filter((h) => h.diaSemana === diaSemana)
+    .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+}
+
+function renderizarCalendarioDia() {
+  const titulo = document.getElementById("calendario-dia-titulo");
+  const agenda = document.getElementById("calendario-dia-agenda");
+  if (!titulo || !agenda) return;
+
+  titulo.textContent = `${DIAS_SEMANA[fechaCalendario.getDay()]} ${fechaCalendario.getDate()} de ${MESES_NOMBRE[fechaCalendario.getMonth()]}`;
+
+  const clases = horariosDelDia(fechaCalendario);
+  if (clases.length === 0) {
+    agenda.innerHTML = `<p class="tabla-vacia">Sin clases este día.</p>`;
+    return;
+  }
+  agenda.innerHTML = clases
+    .map(
+      (h) => `
+      <div class="agenda-item">
+        <span class="agenda-hora">${h.horaInicio} – ${h.horaFin}</span>
+        <span class="agenda-detalle">${h.tipoClase}${h.aula ? " · " + h.aula : ""}</span>
+      </div>`
+    )
+    .join("");
+}
+
+function renderizarCalendarioMes() {
+  const titulo = document.getElementById("calendario-mes-titulo");
+  const grilla = document.getElementById("calendario-mes-grilla");
+  if (!titulo || !grilla) return;
+
+  titulo.textContent = `${MESES_NOMBRE[fechaCalendario.getMonth()]} ${fechaCalendario.getFullYear()}`;
+
+  const primero = new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth(), 1);
+  const ultimo = new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth() + 1, 0);
+  const hoy = new Date();
+
+  let html = ["D", "L", "M", "M", "J", "V", "S"]
+    .map((d) => `<div class="grilla-encabezado">${d}</div>`)
+    .join("");
+
+  for (let i = 0; i < primero.getDay(); i++) html += `<div class="grilla-celda grilla-celda-vacia"></div>`;
+
+  for (let dia = 1; dia <= ultimo.getDate(); dia++) {
+    const fecha = new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth(), dia);
+    const tieneClase = horariosDelDia(fecha).length > 0;
+    const esHoy =
+      fecha.getFullYear() === hoy.getFullYear() && fecha.getMonth() === hoy.getMonth() && fecha.getDate() === hoy.getDate();
+    html += `
+      <button type="button" class="grilla-celda ${esHoy ? "grilla-celda-hoy" : ""} ${tieneClase ? "grilla-celda-conclase" : ""}" data-dia="${dia}">
+        <span class="grilla-numero">${dia}</span>
+        ${tieneClase ? `<span class="grilla-punto"></span>` : ""}
+      </button>`;
+  }
+  grilla.innerHTML = html;
+
+  grilla.querySelectorAll("[data-dia]").forEach((boton) => {
+    boton.addEventListener("click", () => {
+      fechaCalendario = new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth(), Number(boton.dataset.dia));
+      cambiarVistaCalendario("dia");
+    });
+  });
+}
+
+function renderizarCalendario() {
+  if (vistaCalendarioActual === "dia") renderizarCalendarioDia();
+  else renderizarCalendarioMes();
+}
+
+function cambiarVistaCalendario(vista) {
+  vistaCalendarioActual = vista;
+  document.getElementById("calendario-dia").classList.toggle("oculto", vista !== "dia");
+  document.getElementById("calendario-mes").classList.toggle("oculto", vista !== "mes");
+  document.getElementById("btn-calendario-dia").classList.toggle("tab-activa", vista === "dia");
+  document.getElementById("btn-calendario-mes").classList.toggle("tab-activa", vista === "mes");
+  renderizarCalendario();
+}
+
+document.getElementById("btn-calendario-dia")?.addEventListener("click", () => cambiarVistaCalendario("dia"));
+document.getElementById("btn-calendario-mes")?.addEventListener("click", () => cambiarVistaCalendario("mes"));
+
+document.getElementById("btn-cal-dia-anterior")?.addEventListener("click", () => {
+  fechaCalendario.setDate(fechaCalendario.getDate() - 1);
+  renderizarCalendario();
+});
+document.getElementById("btn-cal-dia-siguiente")?.addEventListener("click", () => {
+  fechaCalendario.setDate(fechaCalendario.getDate() + 1);
+  renderizarCalendario();
+});
+document.getElementById("btn-cal-mes-anterior")?.addEventListener("click", () => {
+  fechaCalendario.setMonth(fechaCalendario.getMonth() - 1);
+  renderizarCalendario();
+});
+document.getElementById("btn-cal-mes-siguiente")?.addEventListener("click", () => {
+  fechaCalendario.setMonth(fechaCalendario.getMonth() + 1);
+  renderizarCalendario();
+});
+// ============================================================
+// Reemplazos: pedir cobertura de una clase propia, y ver/tomar
+// los pedidos abiertos de otros profes.
+// ============================================================
+
+const selectClaseReemplazo = document.getElementById("select-clase-reemplazo");
+const fechaReemplazo = document.getElementById("fecha-reemplazo");
+const motivoReemplazo = document.getElementById("motivo-reemplazo");
+const btnPedirReemplazo = document.getElementById("btn-pedir-reemplazo");
+const confirmacionReemplazo = document.getElementById("confirmacion-reemplazo");
+const listaReemplazosAbiertos = document.getElementById("lista-reemplazos-abiertos");
+
+let unsubscribeReemplazosAbiertos = null;
+
+function actualizarSelectClases() {
+  if (selectClaseReemplazo) {
+    if (misHorarios.length === 0) {
+      selectClaseReemplazo.innerHTML = `<option value="">No tenés clases cargadas todavía</option>`;
+    } else {
+      selectClaseReemplazo.innerHTML = misHorarios
+        .map(
+          (h, i) =>
+            `<option value="${i}">${DIAS_SEMANA[h.diaSemana]} ${h.horaInicio}-${h.horaFin} · ${h.tipoClase}</option>`
+        )
+        .join("");
+    }
+  }
+  renderizarClasesAfectadas();
+}
+
+btnPedirReemplazo?.addEventListener("click", async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+  const indice = selectClaseReemplazo?.value;
+  if (indice === "" || indice === undefined || !misHorarios[indice]) {
+    confirmacionReemplazo.textContent = "Elegí primero cuál de tus clases necesita reemplazo.";
+    confirmacionReemplazo.classList.remove("oculto");
+    confirmacionReemplazo.classList.add("error");
+    return;
+  }
+  if (!fechaReemplazo.value) {
+    confirmacionReemplazo.textContent = "Elegí la fecha.";
+    confirmacionReemplazo.classList.remove("oculto");
+    confirmacionReemplazo.classList.add("error");
+    return;
+  }
+
+  const clase = misHorarios[indice];
+  btnPedirReemplazo.setAttribute("disabled", "true");
+  confirmacionReemplazo.classList.add("oculto");
+
+  try {
+    await addDoc(collection(db, "reemplazos"), {
+      uid: user.uid,
+      email: user.email,
+      nombre: user.displayName || user.email,
+      diaSemana: clase.diaSemana,
+      diaTexto: DIAS_SEMANA[clase.diaSemana],
+      horaInicio: clase.horaInicio,
+      horaFin: clase.horaFin,
+      tipoClase: clase.tipoClase,
+      aula: clase.aula || "",
+      fecha: fechaReemplazo.value,
+      motivo: motivoReemplazo.value.trim(),
+      estado: "abierto",
+      creadoEn: serverTimestamp(),
+    });
+    fechaReemplazo.value = "";
+    motivoReemplazo.value = "";
+    confirmacionReemplazo.textContent = "Listo, se les avisó a los demás profes y a los administradores.";
+    confirmacionReemplazo.classList.remove("error");
+    confirmacionReemplazo.classList.remove("oculto");
+  } catch (err) {
+    console.error(err);
+    confirmacionReemplazo.textContent = "No se pudo enviar el pedido, probá de nuevo.";
+    confirmacionReemplazo.classList.remove("oculto");
+    confirmacionReemplazo.classList.add("error");
+  } finally {
+    btnPedirReemplazo.removeAttribute("disabled");
+  }
+});
+
+function escucharReemplazosAbiertos() {
+  const q = query(collection(db, "reemplazos"), where("estado", "==", "abierto"), orderBy("creadoEn", "desc"), limit(20));
+  unsubscribeReemplazosAbiertos = onSnapshot(q, (snap) => {
+    if (!listaReemplazosAbiertos) return;
+    if (snap.empty) {
+      listaReemplazosAbiertos.innerHTML = `<p class="tabla-vacia">No hay reemplazos pedidos por ahora.</p>`;
+      return;
+    }
+    const user = auth.currentUser;
+    listaReemplazosAbiertos.innerHTML = snap.docs
+      .map((docSnap) => {
+        const r = docSnap.data();
+        const esPropio = user && r.email === user.email;
+        return `
+          <div class="tarjeta-solicitud">
+            <strong>${r.nombre}</strong> necesita reemplazo
+            <br />
+            ${r.diaTexto} ${r.fecha} · ${r.horaInicio}-${r.horaFin} · ${r.tipoClase}${r.aula ? " · " + r.aula : ""}
+            ${r.motivo ? `<br /><em>"${r.motivo}"</em>` : ""}
+            ${
+              esPropio
+                ? `<br /><span class="estado-solicitud estado-pendiente">Tu pedido</span>`
+                : `<br /><button class="boton-secundario" data-id="${docSnap.id}" data-accion="cubrir">Puedo cubrirlo</button>`
+            }
+          </div>`;
+      })
+      .join("");
+
+    listaReemplazosAbiertos.querySelectorAll('[data-accion="cubrir"]').forEach((boton) => {
+      boton.addEventListener("click", () => cubrirReemplazo(boton.dataset.id));
+    });
+  });
+}
+
+async function cubrirReemplazo(id) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const ok = confirm("¿Confirmás que vas a cubrir esta clase?");
+  if (!ok) return;
+  try {
+    await updateDoc(doc(db, "reemplazos", id), {
+      estado: "cubierto",
+      cubiertoPorEmail: user.email,
+      cubiertoPorNombre: user.displayName || user.email,
+      cubiertoEn: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error(err);
+    alert("No se pudo confirmar. Probá de nuevo.");
+  }
+}
+
+escucharReemplazosAbiertos();
+
 function escucharMisSolicitudes(user) {
   const solicitudesRef = collection(db, "solicitudes");
   const q = query(solicitudesRef, where("email", "==", user.email), orderBy("creadoEn", "desc"), limit(10));
@@ -697,7 +1041,7 @@ function escucharMisSolicitudes(user) {
       listaMisSolicitudes.innerHTML = "";
       return;
     }
-    const etiquetaEstado = { pendiente: "Pendiente", aprobada: "Aprobada", rechazada: "Rechazada" };
+    const etiquetaEstado = { pendiente: "Pendiente", aprobada: "Aprobada", rechazada: "Rechazada", cancelada: "Cancelada" };
     listaMisSolicitudes.innerHTML = snap.docs
       .map((d) => {
         const s = d.data();
@@ -707,9 +1051,31 @@ function escucharMisSolicitudes(user) {
             <strong>${tipoTexto}</strong>: ${s.fechaInicio} → ${s.fechaFin}
             <br />
             <span class="estado-solicitud estado-${s.estado}">${etiquetaEstado[s.estado] || s.estado}</span>
+            ${
+              s.estado === "rechazada" && s.motivoRechazo
+                ? `<p class="texto-motivo-rechazo">Motivo: ${s.motivoRechazo}</p>`
+                : ""
+            }
+            ${
+              s.estado === "pendiente"
+                ? `<br /><button class="boton-texto-chico" data-id="${d.id}" data-accion="cancelar-solicitud">Cancelar</button>`
+                : ""
+            }
           </div>
         `;
       })
       .join("");
+
+    listaMisSolicitudes.querySelectorAll('[data-accion="cancelar-solicitud"]').forEach((boton) => {
+      boton.addEventListener("click", async () => {
+        if (!confirm("¿Cancelar esta solicitud?")) return;
+        try {
+          await updateDoc(doc(db, "solicitudes", boton.dataset.id), { estado: "cancelada" });
+        } catch (err) {
+          console.error(err);
+          alert("No se pudo cancelar. Probá de nuevo.");
+        }
+      });
+    });
   });
 }
