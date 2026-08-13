@@ -18,6 +18,7 @@ import {
   orderBy,
   limit,
   updateDoc,
+  getDocs,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
@@ -42,6 +43,93 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 const db = getFirestore(app);
+// ============================================================
+// Avisos por mail (sin Cloud Functions, mandados directo desde
+// el celular del profe con el SDK de navegador de EmailJS).
+// Mismo Service ID y Public Key que ya usás en admin-web.
+// ============================================================
+const EMAILJS_PUBLIC_KEY = "DenrUpVwH3era9YKa";
+const EMAILJS_SERVICE_ID = "service_7k9myip";
+const EMAILJS_TEMPLATE_NUEVA_SOLICITUD = "template_lxy3qul";
+const EMAILJS_TEMPLATE_REEMPLAZO = "template_hgioun7";
+
+let emailjsListo = false;
+function inicializarEmailJS() {
+  if (emailjsListo) return;
+  if (typeof window.emailjs === "undefined") return;
+  window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  emailjsListo = true;
+}
+
+async function obtenerEmailsAdmins() {
+  try {
+    const snap = await getDocs(collection(db, "admins"));
+    return snap.docs.map((d) => d.id);
+  } catch (err) {
+    console.error("No se pudo leer la lista de admins:", err);
+    return [];
+  }
+}
+
+async function avisarNuevaSolicitudPorMail({ nombre, tipo, fechaInicio, fechaFin, comentario, clasesAfectadas }) {
+  inicializarEmailJS();
+  if (!emailjsListo) return;
+  const admins = await obtenerEmailsAdmins();
+  if (admins.length === 0) return;
+  const clasesTexto =
+    (clasesAfectadas || [])
+      .map((c) => `${c.diaTexto} ${c.horaInicio}-${c.horaFin} (${c.tipoClase})`)
+      .join(", ") || "Todo el día";
+  await Promise.all(
+    admins.map((email) =>
+      window.emailjs
+        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NUEVA_SOLICITUD, {
+          to_email: email,
+          nombre_empleado: nombre,
+          tipo_solicitud: tipo === "licencia" ? "Licencia" : "Vacaciones",
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          comentario: comentario || "(sin comentario)",
+          clases_afectadas: clasesTexto,
+        })
+        .catch((err) => console.error("No se pudo avisar a", email, err))
+    )
+  );
+}
+
+async function avisarNuevoReemplazoPorMail({ email: emailPropio, nombre, diaTexto, fecha, horaInicio, horaFin, tipoClase, aula, motivo }) {
+  inicializarEmailJS();
+  if (!emailjsListo) return;
+  const admins = await obtenerEmailsAdmins();
+  const destinatarios = new Set(admins);
+  try {
+    const horariosSnap = await getDocs(query(collection(db, "horarios"), where("activo", "==", true)));
+    horariosSnap.docs.forEach((d) => {
+      const h = d.data();
+      if (h.email && h.email !== emailPropio) destinatarios.add(h.email);
+    });
+  } catch (err) {
+    console.error("No se pudo leer horarios para avisar reemplazo:", err);
+  }
+  if (destinatarios.size === 0) return;
+  await Promise.all(
+    [...destinatarios].map((email) =>
+      window.emailjs
+        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_REEMPLAZO, {
+          to_email: email,
+          nombre_profe: nombre,
+          dia_texto: diaTexto,
+          fecha,
+          hora_inicio: horaInicio,
+          hora_fin: horaFin,
+          tipo_clase: tipoClase,
+          aula: aula || "(sin aula)",
+          motivo: motivo || "(sin motivo)",
+        })
+        .catch((err) => console.error("No se pudo avisar a", email, err))
+    )
+  );
+}
 
 // --- Ubicación donde se permite fichar ---
 const UBICACION_OBJETIVO = { lat: -53.79080312098218, lng: -67.69202228688869 };
@@ -747,6 +835,14 @@ btnEnviarSolicitud.addEventListener("click", async () => {
     };
 
     await addDoc(collection(db, "solicitudes"), datosSolicitud);
+    avisarNuevaSolicitudPorMail({
+      nombre: datosSolicitud.nombre,
+      tipo: datosSolicitud.tipo,
+      fechaInicio: datosSolicitud.fechaInicio,
+      fechaFin: datosSolicitud.fechaFin,
+      comentario: datosSolicitud.comentario,
+      clasesAfectadas: datosSolicitud.clasesAfectadas,
+    });
 
     fechaInicioSolicitud.value = "";
     fechaFinSolicitud.value = "";
@@ -962,6 +1058,17 @@ btnPedirReemplazo?.addEventListener("click", async () => {
       motivo: motivoReemplazo.value.trim(),
       estado: "abierto",
       creadoEn: serverTimestamp(),
+    });
+    avisarNuevoReemplazoPorMail({
+      email: user.email,
+      nombre: user.displayName || user.email,
+      diaTexto: DIAS_SEMANA[clase.diaSemana],
+      fecha: fechaReemplazo.value,
+      horaInicio: clase.horaInicio,
+      horaFin: clase.horaFin,
+      tipoClase: clase.tipoClase,
+      aula: clase.aula || "",
+      motivo: motivoReemplazo.value.trim(),
     });
     fechaReemplazo.value = "";
     motivoReemplazo.value = "";
