@@ -21,7 +21,6 @@
     rel="stylesheet"
   />
   <link rel="stylesheet" href="/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
@@ -66,6 +65,13 @@
           <path d="M50 42 a8 8 0 0 1 8 8" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
           <path d="M50 62 a12 12 0 0 1 -12 -12" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
         </svg>
+
+        <div id="confirmacion-fichaje" class="confirmacion-fichaje oculto">
+          <svg class="check-animado" viewBox="0 0 52 52">
+            <circle class="check-circulo" cx="26" cy="26" r="23" fill="none" />
+            <path class="check-tilde" fill="none" d="M14 27 l8 8 16-16" />
+          </svg>
+        </div>
       </button>
       <p id="texto-estado" class="texto-estado">Cargando tu estado…</p>
       <button id="btn-escanear" class="boton-texto boton-escanear">
@@ -87,6 +93,56 @@
     </div>
 
     <div id="mi-espacio-contenido" class="mi-espacio-contenido">
+
+      <div class="bloque-espacio">
+        <p class="bloque-titulo">Avisos de fichaje</p>
+        <p class="bloque-descripcion">
+          Recibí una notificación en el celular si te olvidás de fichar tu entrada o tu salida.
+        </p>
+        <button id="btn-activar-avisos" class="boton-secundario">Activar avisos en este celular</button>
+        <p id="confirmacion-avisos" class="texto-confirmacion oculto"></p>
+      </div>
+
+      <div class="bloque-espacio">
+        <p class="bloque-titulo">Mi calendario de clases</p>
+        <div class="tabs-vista tabs-vista-chica">
+          <button id="btn-calendario-dia" class="tab-boton tab-activa" type="button">Día</button>
+          <button id="btn-calendario-mes" class="tab-boton" type="button">Mes</button>
+        </div>
+        <div id="calendario-dia" class="calendario-dia">
+          <div class="nav-calendario">
+            <button id="btn-cal-dia-anterior" class="boton-texto-chico" type="button">←</button>
+            <strong id="calendario-dia-titulo"></strong>
+            <button id="btn-cal-dia-siguiente" class="boton-texto-chico" type="button">→</button>
+          </div>
+          <div id="calendario-dia-agenda" class="agenda-dia"></div>
+        </div>
+        <div id="calendario-mes" class="calendario-mes oculto">
+          <div class="nav-calendario">
+            <button id="btn-cal-mes-anterior" class="boton-texto-chico" type="button">←</button>
+            <strong id="calendario-mes-titulo"></strong>
+            <button id="btn-cal-mes-siguiente" class="boton-texto-chico" type="button">→</button>
+          </div>
+          <div id="calendario-mes-grilla" class="grilla-mes"></div>
+        </div>
+      </div>
+
+      <div class="bloque-espacio">
+        <p class="bloque-titulo">Necesito un reemplazo</p>
+        <p class="bloque-descripcion">
+          Elegí cuál de tus clases necesitás cubrir. Se les va a avisar por mail a los demás profes y a los administradores.
+        </p>
+        <select id="select-clase-reemplazo" class="campo-texto"></select>
+        <input type="date" id="fecha-reemplazo" class="campo-texto" />
+        <textarea id="motivo-reemplazo" class="campo-textarea" rows="2" placeholder="Motivo (opcional)"></textarea>
+        <button id="btn-pedir-reemplazo" class="boton-secundario">Pedir reemplazo</button>
+        <p id="confirmacion-reemplazo" class="texto-confirmacion oculto"></p>
+      </div>
+
+      <div class="bloque-espacio">
+        <p class="bloque-titulo">Reemplazos abiertos (de todos los profes)</p>
+        <div id="lista-reemplazos-abiertos" class="lista-mis-solicitudes"></div>
+      </div>
 
       <div class="bloque-espacio">
         <p class="bloque-titulo">¿Cómo estás hoy?</p>
@@ -134,6 +190,9 @@
           </div>
 
           <input type="text" id="comentario-solicitud" class="campo-texto" placeholder="Comentario (opcional)" />
+
+          <p class="etiqueta-archivo">¿Afecta clases puntuales? (opcional — si no marcás ninguna, se entiende que es todo el día)</p>
+          <div id="lista-clases-afectadas" class="lista-clases-afectadas"></div>
 
           <div id="adjuntar-certificado-solicitud" class="oculto">
             <label for="input-certificado-solicitud" class="etiqueta-archivo">Adjuntar certificado médico</label>
