@@ -63,6 +63,7 @@ export default function Solicitudes() {
         fechaFin: solicitud.fechaFin,
         estado: nuevoEstado,
         motivoRechazo,
+        clasesAfectadas: solicitud.clasesAfectadas,
       });
     } catch (err) {
       console.error(err);
