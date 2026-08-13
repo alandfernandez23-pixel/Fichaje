@@ -8,10 +8,6 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
     }
 
-    // Caja aproximada de ~80m alrededor del punto donde se puede fichar.
-    // Es una defensa adicional (además del control preciso que hace la
-    // propia web en el celular, que exige estar a 50m de radio real);
-    // no reemplaza esa verificación, la refuerza.
     function ubicacionValida() {
       return request.resource.data.keys().hasAll(['ubicacion'])
         && request.resource.data.ubicacion.lat > -53.79152
@@ -20,27 +16,18 @@ service cloud.firestore {
         && request.resource.data.ubicacion.lng < -67.69080;
     }
 
-    // Alternativa al GPS: fichar escaneando el código QR físico del local.
     function codigoQrValido() {
       return request.resource.data.keys().hasAll(['verificadoPorQR', 'codigoQR'])
         && request.resource.data.verificadoPorQR == true
         && request.resource.data.codigoQR == 'MQP-FICHAJE-INGRESO';
     }
 
-    // Un fichaje "es propio" si coincide el uid (lo creó la persona
-    // desde su celular) o el email (por ejemplo, si lo cargó un admin
-    // a mano, que no tiene forma de saber el uid real del empleado).
     function esPropio() {
       return resource.data.uid == request.auth.uid
         || resource.data.email == request.auth.token.email;
     }
 
     match /fichajes/{fichajeId} {
-
-      // Un empleado fichando su propia entrada: exige que compruebe su
-      // presencia por GPS (dentro del radio) o con el código QR del local.
-      // Un administrador: puede crear el fichaje que necesite (por
-      // ejemplo, cargar uno manual por un empleado), sin restricción.
       allow create: if request.auth != null
         && (
           (request.resource.data.uid == request.auth.uid
@@ -50,10 +37,6 @@ service cloud.firestore {
           || esAdmin()
         );
 
-      // Cerrar (fichar salida) un fichaje propio no exige volver a
-      // comprobar la ubicación: alcanza con que siga abierto y sea de
-      // esa persona (por uid o por email, para incluir los que cargó
-      // un admin a su nombre).
       allow update: if request.auth != null
         && (
           (esPropio()
@@ -64,24 +47,14 @@ service cloud.firestore {
 
       allow read: if request.auth != null && (esPropio() || esAdmin());
 
-      // El borrado definitivo (desde la Papelera) solo lo puede hacer
-      // un admin, y solo sobre un fichaje que ya estaba "eliminado"
-      // (soft-delete previo) — nadie borra algo directamente del
-      // historial activo sin pasar antes por la papelera.
       allow delete: if request.auth != null && esAdmin() && resource.data.eliminado == true;
     }
 
-    // Lista de administradores: cualquier persona logueada puede leerla
-    // (solo son emails, no hay datos sensibles), porque el celular la
-    // necesita para saber a quién avisarle por mail de una solicitud o
-    // un reemplazo (sin Blaze, ese aviso se manda desde el celular, no
-    // desde un servidor). Solo un admin puede agregar o quitar admins.
     match /admins/{adminEmail} {
       allow read: if request.auth != null;
       allow write: if esAdmin();
     }
 
-    // Ánimo del día y comentarios/ideas que manda el empleado.
     match /notasEmpleado/{notaId} {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
@@ -93,10 +66,7 @@ service cloud.firestore {
         && (resource.data.uid == request.auth.uid || esAdmin());
     }
 
-    // Solicitudes de vacaciones o licencia.
     match /solicitudes/{solicitudId} {
-      // El empleado solo puede crear la suya propia, y siempre arranca
-      // en estado "pendiente" (no puede autoaprobarse).
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.email == request.auth.token.email
@@ -107,9 +77,6 @@ service cloud.firestore {
             || resource.data.email == request.auth.token.email
             || esAdmin());
 
-      // El admin puede cambiar el estado (aprobar / rechazar). El
-      // propio empleado solo puede cancelar su pedido mientras siga
-      // "pendiente" (no puede tocarlo una vez ya resuelto).
       allow update: if request.auth != null
         && (
           esAdmin()
@@ -121,19 +88,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Horario semanal de clases por instructor (base para el calendario,
-    // los reemplazos, y las alertas). Cualquier persona logueada puede
-    // leer todos los horarios (necesario para "Reemplazos" y para saber
-    // a qué otras profes avisarle por mail desde el celular).
     match /horarios/{horarioId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && esAdmin();
     }
 
-    // Pedidos de reemplazo puntual. Cualquier persona logueada puede
-    // verlos (así los demás profes se enteran y pueden ofrecerse), pero
-    // solo el dueño del pedido o un admin pueden modificarlo, salvo el
-    // caso especial de "cubrir" un pedido abierto.
     match /reemplazos/{reemplazoId} {
       allow read: if request.auth != null;
 
@@ -144,11 +103,9 @@ service cloud.firestore {
 
       allow update: if request.auth != null
         && (
-          // Cualquier otro profe puede tomarlo (marcarlo como cubierto).
           (resource.data.estado == 'abierto'
             && request.resource.data.estado == 'cubierto'
             && request.resource.data.cubiertoPorEmail == request.auth.token.email)
-          // El dueño puede editar o cancelar su propio pedido.
           || resource.data.email == request.auth.token.email
           || esAdmin()
         );
