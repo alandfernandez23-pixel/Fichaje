@@ -1,4 +1,4 @@
-const CACHE = "fichaje-v9";
+const CACHE = "fichaje-v10";
 const ARCHIVOS = ["/", "/index.html", "/style.css", "/app.js", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
