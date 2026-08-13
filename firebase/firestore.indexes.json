@@ -13,18 +13,15 @@
       "collectionGroup": "fichajes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "email", "order": "ASCENDING" },
         { "fieldPath": "horaEntrada", "order": "ASCENDING" }
       ]
     },
     {
-      "collectionGroup": "horarios",
+      "collectionGroup": "notasEmpleado",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "activo", "order": "ASCENDING" },
-        { "fieldPath": "diaSemana", "order": "ASCENDING" }
+        { "fieldPath": "tipo", "order": "ASCENDING" },
+        { "fieldPath": "creadoEn", "order": "ASCENDING" }
       ]
-    }
-  ],
-  "fieldOverrides": []
-}
+    },
+    {
