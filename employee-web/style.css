@@ -203,6 +203,60 @@ h1 {
   cursor: default;
 }
 
+/* --- Confirmación animada (check) al fichar --- */
+.confirmacion-fichaje {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--acento);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: aparecer-confirmacion 0.2s ease forwards;
+}
+
+.boton-huella { position: relative; }
+
+@keyframes aparecer-confirmacion {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.confirmacion-fichaje.saliendo {
+  animation: desaparecer-confirmacion 0.25s ease forwards;
+}
+@keyframes desaparecer-confirmacion {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.9); }
+}
+
+.check-animado { width: 84px; height: 84px; }
+
+.check-circulo {
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-dasharray: 145;
+  stroke-dashoffset: 145;
+  animation: dibujar-circulo 0.4s ease forwards;
+}
+
+.check-tilde {
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 34;
+  stroke-dashoffset: 34;
+  animation: dibujar-tilde 0.3s 0.35s ease forwards;
+}
+
+@keyframes dibujar-circulo {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes dibujar-tilde {
+  to { stroke-dashoffset: 0; }
+}
+
 .texto-estado {
   margin-top: 28px;
   font-size: 17px;
@@ -360,6 +414,13 @@ h1 {
   color: var(--acento);
 }
 
+.bloque-descripcion {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--texto-suave);
+  line-height: 1.4;
+}
+
 .animos {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -512,3 +573,158 @@ h1 {
 .estado-pendiente { background: #F1E3B0; color: #6b5900; }
 .estado-aprobada { background: var(--verde-adentro, #BFDECB); color: #2f7d4f; }
 .estado-rechazada { background: #f3c9c9; color: #b03535; }
+
+/* --- Mi calendario --- */
+
+.tabs-vista-chica {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tabs-vista-chica .tab-boton {
+  flex: 1;
+  background: var(--fondo);
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+
+.tabs-vista-chica .tab-boton.tab-activa {
+  background: var(--acento);
+  color: #fff;
+}
+
+.nav-calendario {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.agenda-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agenda-item {
+  background: var(--fondo);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agenda-hora {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--acento);
+}
+
+.agenda-detalle {
+  font-size: 13px;
+}
+
+.grilla-mes {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.grilla-encabezado {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--texto-suave);
+  padding-bottom: 3px;
+}
+
+.grilla-celda {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 6px;
+  background: var(--fondo);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 2px;
+}
+
+.grilla-celda-vacia {
+  background: none;
+  cursor: default;
+}
+
+.grilla-celda-hoy {
+  outline: 2px solid var(--acento);
+}
+
+.grilla-celda-conclase {
+  background: var(--verde-adentro);
+}
+
+.grilla-numero {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.grilla-punto {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--acento);
+}
+
+/* --- Solicitudes: clases afectadas, cancelar, motivo de rechazo --- */
+
+.lista-clases-afectadas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.check-clase-afectada {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 10px;
+  background: var(--fondo);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.boton-texto-chico {
+  background: none;
+  border: none;
+  color: var(--acento);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.texto-motivo-rechazo {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #b03535;
+}
+
+.estado-cancelada {
+  background: #E4DDE3;
+  color: #5B505E;
+}
