@@ -15,7 +15,7 @@ function inicializar() {
   listo = true;
 }
 
-export async function avisarSolicitudResuelta({ email, nombre, tipo, fechaInicio, fechaFin, estado }) {
+export async function avisarSolicitudResuelta({ email, nombre, tipo, fechaInicio, fechaFin, estado, motivoRechazo }) {
   inicializar();
   if (!listo || EMAILJS_TEMPLATE_SOLICITUD_RESUELTA.startsWith('PEGAR_')) return;
   try {
@@ -26,6 +26,7 @@ export async function avisarSolicitudResuelta({ email, nombre, tipo, fechaInicio
       fecha_inicio: fechaInicio,
       fecha_fin: fechaFin,
       estado: estado === 'aprobada' ? 'Aprobada' : 'Rechazada',
+      motivo_rechazo: motivoRechazo || '',
     });
   } catch (err) {
     console.error('No se pudo enviar el aviso por mail:', err);

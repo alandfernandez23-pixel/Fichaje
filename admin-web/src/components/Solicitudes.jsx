@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, updateDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { avisarSolicitudResuelta } from '../emailjs.js';
+import { exportarSolicitudesAZip } from './exportarSolicitudesZip.js';
 
-const ETIQUETA_ESTADO = { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada' };
+const ETIQUETA_ESTADO = { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada', cancelada: 'Cancelada' };
 
 function abrirCertificado(solicitud) {
   try {
@@ -38,12 +39,21 @@ export default function Solicitudes() {
     : solicitudes;
 
   async function resolver(solicitud, nuevoEstado) {
+    let motivoRechazo = '';
+    if (nuevoEstado === 'rechazada') {
+      motivoRechazo = window.prompt('Motivo del rechazo (el empleado lo va a ver):', '') || '';
+      if (!motivoRechazo.trim()) {
+        alert('Necesitás escribir un motivo para rechazar la solicitud.');
+        return;
+      }
+    }
     setProcesando(solicitud.id);
     try {
       await updateDoc(doc(db, 'solicitudes', solicitud.id), {
         estado: nuevoEstado,
         resueltoPor: auth.currentUser?.email || '',
         resueltoEn: new Date(),
+        ...(nuevoEstado === 'rechazada' ? { motivoRechazo } : {}),
       });
       await avisarSolicitudResuelta({
         email: solicitud.email,
@@ -52,6 +62,7 @@ export default function Solicitudes() {
         fechaInicio: solicitud.fechaInicio,
         fechaFin: solicitud.fechaFin,
         estado: nuevoEstado,
+        motivoRechazo,
       });
     } catch (err) {
       console.error(err);
@@ -61,20 +72,34 @@ export default function Solicitudes() {
     }
   }
 
+  async function exportar() {
+    try {
+      await exportarSolicitudesAZip(visibles);
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo generar el archivo para exportar.');
+    }
+  }
+
   return (
     <div className="panel-secundario">
-      <div className="tabs-vista" style={{ marginBottom: 16 }}>
-        <button
-          className={`tab-boton ${filtro === 'pendiente' ? 'tab-activa' : ''}`}
-          onClick={() => setFiltro('pendiente')}
-        >
-          Pendientes
-        </button>
-        <button
-          className={`tab-boton ${filtro === 'todas' ? 'tab-activa' : ''}`}
-          onClick={() => setFiltro('todas')}
-        >
-          Todas
+      <div className="tabs-vista" style={{ marginBottom: 16, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex' }}>
+          <button
+            className={`tab-boton ${filtro === 'pendiente' ? 'tab-activa' : ''}`}
+            onClick={() => setFiltro('pendiente')}
+          >
+            Pendientes
+          </button>
+          <button
+            className={`tab-boton ${filtro === 'todas' ? 'tab-activa' : ''}`}
+            onClick={() => setFiltro('todas')}
+          >
+            Todas
+          </button>
+        </div>
+        <button className="boton-secundario boton-chico" onClick={exportar} disabled={visibles.length === 0}>
+          Exportar (.zip)
         </button>
       </div>
 
@@ -92,7 +117,15 @@ export default function Solicitudes() {
             <p className="tarjeta-solicitud-detalle">
               {s.tipo === 'licencia' ? 'Licencia' : 'Vacaciones'} · {s.fechaInicio} → {s.fechaFin}
             </p>
+            {Array.isArray(s.clasesAfectadas) && s.clasesAfectadas.length > 0 && (
+              <p className="tarjeta-solicitud-detalle">
+                Clases afectadas: {s.clasesAfectadas.map((c) => `${c.diaTexto} ${c.horaInicio}-${c.horaFin}`).join(', ')}
+              </p>
+            )}
             {s.comentario && <p className="tarjeta-solicitud-comentario">"{s.comentario}"</p>}
+            {s.estado === 'rechazada' && s.motivoRechazo && (
+              <p className="tarjeta-solicitud-comentario">Motivo del rechazo: "{s.motivoRechazo}"</p>
+            )}
             {s.archivoBase64 && (
               <button
                 type="button"

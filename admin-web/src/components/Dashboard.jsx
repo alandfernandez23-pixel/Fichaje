@@ -5,6 +5,7 @@ import {
   orderBy,
   query,
   updateDoc,
+  deleteDoc,
   deleteField,
   addDoc,
   Timestamp,
@@ -16,6 +17,9 @@ import Administradores from './Administradores.jsx';
 import Solicitudes from './Solicitudes.jsx';
 import Buzon from './Buzon.jsx';
 import Analisis from './Analisis.jsx';
+import Horarios from './Horarios.jsx';
+import Calendario from './Calendario.jsx';
+import Reemplazos from './Reemplazos.jsx';
 import { exportarFichajesAExcel } from './exportarExcel.js';
 
 function aFechaLocal(date) {
@@ -137,6 +141,17 @@ export default function Dashboard({ user }) {
     });
   };
 
+  const eliminarDefinitivo = async (f) => {
+    const entradaTexto = f.horaEntrada
+      ? f.horaEntrada.toDate().toLocaleString('es-AR')
+      : '';
+    const ok = window.confirm(
+      `¿Eliminar DEFINITIVAMENTE el fichaje de ${f.nombre} (${entradaTexto})?\n\nEsto no se puede deshacer.`
+    );
+    if (!ok) return;
+    await deleteDoc(f.ref);
+  };
+
   const marcarSalidaAhora = async (f) => {
     const ok = window.confirm(
       `¿Marcar la salida de ${f.nombre} ahora mismo (${ahora.toLocaleTimeString('es-AR', { hour12: false })})?`
@@ -232,6 +247,24 @@ export default function Dashboard({ user }) {
         >
           Análisis
         </button>
+        <button
+          className={`tab-boton ${vista === 'horarios' ? 'tab-activa' : ''}`}
+          onClick={() => setVista('horarios')}
+        >
+          Horarios
+        </button>
+        <button
+          className={`tab-boton ${vista === 'calendario' ? 'tab-activa' : ''}`}
+          onClick={() => setVista('calendario')}
+        >
+          Calendario
+        </button>
+        <button
+          className={`tab-boton ${vista === 'reemplazos' ? 'tab-activa' : ''}`}
+          onClick={() => setVista('reemplazos')}
+        >
+          Reemplazos
+        </button>
       </div>
 
       {vista === 'admins' ? (
@@ -242,6 +275,12 @@ export default function Dashboard({ user }) {
         <Buzon />
       ) : vista === 'analisis' ? (
         <Analisis />
+      ) : vista === 'horarios' ? (
+        <Horarios />
+      ) : vista === 'calendario' ? (
+        <Calendario />
+      ) : vista === 'reemplazos' ? (
+        <Reemplazos />
       ) : (
         <>
       <div className="dashboard-toolbar">
@@ -352,6 +391,7 @@ export default function Dashboard({ user }) {
                 vista={vista}
                 onEliminar={() => eliminarFichaje(f)}
                 onRestaurar={() => restaurarFichaje(f)}
+                onEliminarDefinitivo={() => eliminarDefinitivo(f)}
                 onMarcarSalida={() => marcarSalidaAhora(f)}
               />
             ))}
@@ -469,7 +509,7 @@ function FormularioFichajeManual({ onCancelar, onGuardar }) {
   );
 }
 
-function FilaFichaje({ fichaje, ahora, vista, onEliminar, onRestaurar, onMarcarSalida }) {
+function FilaFichaje({ fichaje, ahora, vista, onEliminar, onRestaurar, onEliminarDefinitivo, onMarcarSalida }) {
   const entrada = fichaje.horaEntrada?.toDate();
   const salida = fichaje.horaSalida?.toDate();
   const abierto = !salida;
@@ -511,9 +551,14 @@ function FilaFichaje({ fichaje, ahora, vista, onEliminar, onRestaurar, onMarcarS
             </button>
           </div>
         ) : (
-          <button className="boton-restaurar" onClick={onRestaurar} title="Restaurar">
-            Restaurar
-          </button>
+          <div className="acciones-fila">
+            <button className="boton-restaurar" onClick={onRestaurar} title="Restaurar">
+              Restaurar
+            </button>
+            <button className="boton-eliminar" onClick={onEliminarDefinitivo} title="Eliminar definitivamente">
+              Eliminar definitivo
+            </button>
+          </div>
         )}
       </td>
     </tr>

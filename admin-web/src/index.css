@@ -536,6 +536,7 @@ h1, h2 {
 .tarjeta-solicitud-admin.estado-borde-pendiente { border-left-color: #d4b106; }
 .tarjeta-solicitud-admin.estado-borde-aprobada { border-left-color: #2f7d4f; }
 .tarjeta-solicitud-admin.estado-borde-rechazada { border-left-color: #b03535; }
+.tarjeta-solicitud-admin.estado-borde-cancelada { border-left-color: #999; }
 
 .tarjeta-solicitud-cabecera,
 .tarjeta-buzon-cabecera {
@@ -604,6 +605,7 @@ h1, h2 {
 .estado-pendiente { background: #F1E3B0; color: #6b5900; }
 .estado-aprobada { background: #BFDECB; color: #2f7d4f; }
 .estado-rechazada { background: #f3c9c9; color: #b03535; }
+.estado-cancelada { background: #E4DDE3; color: #5B505E; }
 
 /* --- Análisis --- */
 
@@ -838,4 +840,194 @@ h1, h2 {
   text-align: center;
   color: var(--tinta-suave, #8C7F8F);
   max-width: 80px;
+}
+
+/* --- Horarios --- */
+
+.form-horario {
+  background: #fff;
+  border: 1px solid #E4DDE3;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-horario-fila {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.form-horario-fila input,
+.form-horario-fila select {
+  flex: 1;
+  min-width: 120px;
+  border: 1px solid #E4DDE3;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.tarjeta-horario-inactiva {
+  opacity: 0.5;
+}
+
+/* --- Intercambio de horarios --- */
+
+.aviso-editando {
+  background: #F1E3B0;
+  color: #6b5900;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin: 0;
+}
+
+.fila-modo-intercambio {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.tarjeta-horario {
+  cursor: default;
+  border-left-width: 4px;
+}
+
+.tarjeta-horario-seleccionada {
+  outline: 2px solid var(--verde);
+  cursor: pointer;
+}
+
+/* --- Calendario --- */
+
+.leyenda-instructoras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.leyenda-punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.nav-calendario {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.agenda-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agenda-item {
+  background: #fff;
+  border: 1px solid #E4DDE3;
+  border-left: 4px solid #ccc;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agenda-hora {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--verde);
+}
+
+.agenda-detalle {
+  font-size: 14px;
+}
+
+.grilla-mes {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.grilla-encabezado {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tinta-suave, #8C7F8F);
+  padding-bottom: 4px;
+}
+
+.grilla-celda {
+  aspect-ratio: 1;
+  border: 1px solid #E4DDE3;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 2px;
+}
+
+.grilla-celda-vacia {
+  border: none;
+  background: none;
+  cursor: default;
+}
+
+.grilla-celda-hoy {
+  border-color: var(--verde);
+  border-width: 2px;
+}
+
+.grilla-celda-elegida {
+  background: var(--papel, #F4F1F3);
+}
+
+.grilla-numero {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.grilla-puntos {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 34px;
+}
+
+.grilla-punto {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.aviso-nombre-auto {
+  background: #DDEEE4;
+  color: #2f6d4a;
 }
