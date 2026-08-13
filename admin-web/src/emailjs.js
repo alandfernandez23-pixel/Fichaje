@@ -15,9 +15,13 @@ function inicializar() {
   listo = true;
 }
 
-export async function avisarSolicitudResuelta({ email, nombre, tipo, fechaInicio, fechaFin, estado, motivoRechazo }) {
+export async function avisarSolicitudResuelta({ email, nombre, tipo, fechaInicio, fechaFin, estado, motivoRechazo, clasesAfectadas }) {
   inicializar();
   if (!listo || EMAILJS_TEMPLATE_SOLICITUD_RESUELTA.startsWith('PEGAR_')) return;
+  const clasesTexto =
+    (clasesAfectadas || [])
+      .map((c) => `${c.diaTexto} ${c.horaInicio}-${c.horaFin} (${c.tipoClase})`)
+      .join(', ') || 'Todo el día';
   try {
     await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SOLICITUD_RESUELTA, {
       to_email: email,
@@ -27,6 +31,7 @@ export async function avisarSolicitudResuelta({ email, nombre, tipo, fechaInicio
       fecha_fin: fechaFin,
       estado: estado === 'aprobada' ? 'Aprobada' : 'Rechazada',
       motivo_rechazo: motivoRechazo || '',
+      clases_afectadas: clasesTexto,
     });
   } catch (err) {
     console.error('No se pudo enviar el aviso por mail:', err);
