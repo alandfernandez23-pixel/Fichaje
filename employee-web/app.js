@@ -12,20 +12,15 @@ import {
   addDoc,
   doc,
   setDoc,
+  getDocs,
   query,
   where,
   onSnapshot,
   orderBy,
   limit,
   updateDoc,
-  getDocs,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import {
-  getMessaging,
-  getToken,
-  isSupported,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 // Pegá acá la misma configuración que usás en admin-web/src/firebase.js
 // (Firebase → Configuración del proyecto → Tus apps → Web)
@@ -43,93 +38,6 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 const db = getFirestore(app);
-// ============================================================
-// Avisos por mail (sin Cloud Functions, mandados directo desde
-// el celular del profe con el SDK de navegador de EmailJS).
-// Mismo Service ID y Public Key que ya usás en admin-web.
-// ============================================================
-const EMAILJS_PUBLIC_KEY = "DenrUpVwH3era9YKa";
-const EMAILJS_SERVICE_ID = "service_7k9myip";
-const EMAILJS_TEMPLATE_NUEVA_SOLICITUD = "template_lxy3qul";
-const EMAILJS_TEMPLATE_REEMPLAZO = "template_hgioun7";
-
-let emailjsListo = false;
-function inicializarEmailJS() {
-  if (emailjsListo) return;
-  if (typeof window.emailjs === "undefined") return;
-  window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-  emailjsListo = true;
-}
-
-async function obtenerEmailsAdmins() {
-  try {
-    const snap = await getDocs(collection(db, "admins"));
-    return snap.docs.map((d) => d.id);
-  } catch (err) {
-    console.error("No se pudo leer la lista de admins:", err);
-    return [];
-  }
-}
-
-async function avisarNuevaSolicitudPorMail({ nombre, tipo, fechaInicio, fechaFin, comentario, clasesAfectadas }) {
-  inicializarEmailJS();
-  if (!emailjsListo) return;
-  const admins = await obtenerEmailsAdmins();
-  if (admins.length === 0) return;
-  const clasesTexto =
-    (clasesAfectadas || [])
-      .map((c) => `${c.diaTexto} ${c.horaInicio}-${c.horaFin} (${c.tipoClase})`)
-      .join(", ") || "Todo el día";
-  await Promise.all(
-    admins.map((email) =>
-      window.emailjs
-        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NUEVA_SOLICITUD, {
-          to_email: email,
-          nombre_empleado: nombre,
-          tipo_solicitud: tipo === "licencia" ? "Licencia" : "Vacaciones",
-          fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin,
-          comentario: comentario || "(sin comentario)",
-          clases_afectadas: clasesTexto,
-        })
-        .catch((err) => console.error("No se pudo avisar a", email, err))
-    )
-  );
-}
-
-async function avisarNuevoReemplazoPorMail({ email: emailPropio, nombre, diaTexto, fecha, horaInicio, horaFin, tipoClase, aula, motivo }) {
-  inicializarEmailJS();
-  if (!emailjsListo) return;
-  const admins = await obtenerEmailsAdmins();
-  const destinatarios = new Set(admins);
-  try {
-    const horariosSnap = await getDocs(query(collection(db, "horarios"), where("activo", "==", true)));
-    horariosSnap.docs.forEach((d) => {
-      const h = d.data();
-      if (h.email && h.email !== emailPropio) destinatarios.add(h.email);
-    });
-  } catch (err) {
-    console.error("No se pudo leer horarios para avisar reemplazo:", err);
-  }
-  if (destinatarios.size === 0) return;
-  await Promise.all(
-    [...destinatarios].map((email) =>
-      window.emailjs
-        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_REEMPLAZO, {
-          to_email: email,
-          nombre_profe: nombre,
-          dia_texto: diaTexto,
-          fecha,
-          hora_inicio: horaInicio,
-          hora_fin: horaFin,
-          tipo_clase: tipoClase,
-          aula: aula || "(sin aula)",
-          motivo: motivo || "(sin motivo)",
-        })
-        .catch((err) => console.error("No se pudo avisar a", email, err))
-    )
-  );
-}
 
 // --- Ubicación donde se permite fichar ---
 const UBICACION_OBJETIVO = { lat: -53.79080312098218, lng: -67.69202228688869 };
@@ -552,61 +460,91 @@ if ("serviceWorker" in navigator) {
 // el empleado no tiene permiso para leer la lista de admins desde acá.
 // ============================================================
 
-// Clave VAPID para notificaciones push: se genera en Firebase Console
-// (Configuración del proyecto → Cloud Messaging → Certificados push web).
-const VAPID_KEY = "PEGAR_VAPID_KEY_ACA";
+// --- Configuración de EmailJS (avisos por correo, mandados desde el
+// propio celular, sin necesidad de un servidor / plan Blaze) ---
+// Completá estos 3 datos con los que te da tu cuenta de emailjs.com.
+const EMAILJS_PUBLIC_KEY = "DenrUpVwH3era9YKa";
+const EMAILJS_SERVICE_ID = "service_7k9myip";
+const EMAILJS_TEMPLATE_NUEVA_SOLICITUD = "template_9pq88u3";
+// Template nuevo, todavía sin crear: para avisar de un pedido de reemplazo.
+const EMAILJS_TEMPLATE_REEMPLAZO = "PEGAR_TEMPLATE_ID_REEMPLAZO_ACA";
 
-const btnActivarAvisos = document.getElementById("btn-activar-avisos");
-const confirmacionAvisos = document.getElementById("confirmacion-avisos");
+let emailjsListo = false;
+function inicializarEmailJS() {
+  if (typeof window.emailjs === "undefined") return;
+  if (EMAILJS_PUBLIC_KEY.startsWith("PEGAR_")) return;
+  window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  emailjsListo = true;
+}
+window.addEventListener("load", inicializarEmailJS);
 
-btnActivarAvisos?.addEventListener("click", async () => {
-  const user = auth.currentUser;
-  if (!user) return;
+async function obtenerEmailsAdmins() {
+  const snap = await getDocs(collection(db, "admins"));
+  return snap.docs.map((d) => d.id);
+}
 
-  confirmacionAvisos.classList.add("oculto");
-  btnActivarAvisos.setAttribute("disabled", "true");
+async function obtenerEmailsOtrasProfes(emailPropio) {
+  const snap = await getDocs(query(collection(db, "horarios"), where("activo", "==", true)));
+  const emails = new Set();
+  snap.docs.forEach((d) => {
+    const email = d.data().email;
+    if (email && email !== emailPropio) emails.add(email);
+  });
+  return [...emails];
+}
 
-  try {
-    if (VAPID_KEY.startsWith("PEGAR_")) {
-      throw new Error("falta configurar VAPID_KEY");
+async function enviarMailATodos(templateId, destinatarios, variables) {
+  if (!emailjsListo || !templateId || templateId.startsWith("PEGAR_")) return;
+  for (const destinatario of destinatarios) {
+    try {
+      await window.emailjs.send(EMAILJS_SERVICE_ID, templateId, { to_email: destinatario, ...variables });
+    } catch (err) {
+      console.error("No se pudo avisar a " + destinatario, err);
     }
-    if (!(await isSupported())) {
-      throw new Error("no soportado en este navegador");
-    }
-
-    const permiso = await Notification.requestPermission();
-    if (permiso !== "granted") {
-      confirmacionAvisos.textContent = "No diste el permiso de notificaciones, así que no vamos a poder avisarte.";
-      confirmacionAvisos.classList.remove("oculto");
-      confirmacionAvisos.classList.add("error");
-      return;
-    }
-
-    const registro = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    const messaging = getMessaging(app);
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registro });
-
-    if (!token) throw new Error("no se pudo obtener el token");
-
-    await setDoc(doc(db, "tokensNotificacion", token), {
-      token,
-      uid: user.uid,
-      email: user.email,
-      nombre: user.displayName || user.email,
-      actualizadoEn: serverTimestamp(),
-    });
-
-    confirmacionAvisos.textContent = "¡Listo! Vas a recibir avisos en este celular si te olvidás de fichar.";
-    confirmacionAvisos.classList.remove("oculto", "error");
-  } catch (err) {
-    console.error(err);
-    confirmacionAvisos.textContent = "No se pudo activar. Probá desde el navegador (Chrome/Safari), no desde otra app.";
-    confirmacionAvisos.classList.remove("oculto");
-    confirmacionAvisos.classList.add("error");
-  } finally {
-    btnActivarAvisos.removeAttribute("disabled");
   }
-});
+}
+
+async function avisarNuevaSolicitudPorMail(datos) {
+  try {
+    const admins = await obtenerEmailsAdmins();
+    const clasesTexto =
+      Array.isArray(datos.clasesAfectadas) && datos.clasesAfectadas.length > 0
+        ? datos.clasesAfectadas.map((c) => `${c.diaTexto} ${c.horaInicio}-${c.horaFin} (${c.tipoClase})`).join(", ")
+        : "Todo el día / no especificado";
+    await enviarMailATodos(EMAILJS_TEMPLATE_NUEVA_SOLICITUD, admins, {
+      nombre_empleado: datos.nombre,
+      email_empleado: datos.email,
+      tipo_solicitud: datos.tipo === "licencia" ? "Licencia" : "Vacaciones",
+      fecha_inicio: datos.fechaInicio,
+      fecha_fin: datos.fechaFin,
+      clases_afectadas: clasesTexto,
+      comentario: datos.comentario || "(sin comentario)",
+    });
+  } catch (err) {
+    console.error("No se pudo avisar la nueva solicitud por mail:", err);
+  }
+}
+
+async function avisarReemplazoPorMail(datos) {
+  try {
+    const [admins, otrasProfes] = await Promise.all([
+      obtenerEmailsAdmins(),
+      obtenerEmailsOtrasProfes(datos.email),
+    ]);
+    const destinatarios = [...new Set([...admins, ...otrasProfes])];
+    await enviarMailATodos(EMAILJS_TEMPLATE_REEMPLAZO, destinatarios, {
+      nombre_solicitante: datos.nombre,
+      dia: datos.diaTexto,
+      fecha: datos.fecha,
+      horario: `${datos.horaInicio} - ${datos.horaFin}`,
+      tipo_clase: datos.tipoClase,
+      motivo: datos.motivo || "(sin comentario)",
+    });
+  } catch (err) {
+    console.error("No se pudo avisar el reemplazo por mail:", err);
+  }
+}
+
 const btnAbrirEspacio = document.getElementById("btn-abrir-espacio");
 const pantallaMiEspacio = document.getElementById("pantalla-mi-espacio");
 const btnCerrarEspacio = document.getElementById("btn-cerrar-espacio");
@@ -835,14 +773,7 @@ btnEnviarSolicitud.addEventListener("click", async () => {
     };
 
     await addDoc(collection(db, "solicitudes"), datosSolicitud);
-    avisarNuevaSolicitudPorMail({
-      nombre: datosSolicitud.nombre,
-      tipo: datosSolicitud.tipo,
-      fechaInicio: datosSolicitud.fechaInicio,
-      fechaFin: datosSolicitud.fechaFin,
-      comentario: datosSolicitud.comentario,
-      clasesAfectadas: datosSolicitud.clasesAfectadas,
-    });
+    avisarNuevaSolicitudPorMail(datosSolicitud);
 
     fechaInicioSolicitud.value = "";
     fechaFinSolicitud.value = "";
@@ -1044,7 +975,7 @@ btnPedirReemplazo?.addEventListener("click", async () => {
   confirmacionReemplazo.classList.add("oculto");
 
   try {
-    await addDoc(collection(db, "reemplazos"), {
+    const datosReemplazo = {
       uid: user.uid,
       email: user.email,
       nombre: user.displayName || user.email,
@@ -1058,18 +989,9 @@ btnPedirReemplazo?.addEventListener("click", async () => {
       motivo: motivoReemplazo.value.trim(),
       estado: "abierto",
       creadoEn: serverTimestamp(),
-    });
-    avisarNuevoReemplazoPorMail({
-      email: user.email,
-      nombre: user.displayName || user.email,
-      diaTexto: DIAS_SEMANA[clase.diaSemana],
-      fecha: fechaReemplazo.value,
-      horaInicio: clase.horaInicio,
-      horaFin: clase.horaFin,
-      tipoClase: clase.tipoClase,
-      aula: clase.aula || "",
-      motivo: motivoReemplazo.value.trim(),
-    });
+    };
+    await addDoc(collection(db, "reemplazos"), datosReemplazo);
+    avisarReemplazoPorMail(datosReemplazo);
     fechaReemplazo.value = "";
     motivoReemplazo.value = "";
     confirmacionReemplazo.textContent = "Listo, se les avisó a los demás profes y a los administradores.";
