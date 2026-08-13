@@ -63,7 +63,13 @@ service cloud.firestore {
         && (resource.data.uid == request.auth.uid
             || resource.data.email == request.auth.token.email
             || esAdmin());
-      allow update: if request.auth != null && esAdmin();
+      allow update: if request.auth != null
+        && (
+          esAdmin()
+          || (resource.data.uid == request.auth.uid
+              && resource.data.estado == 'pendiente'
+              && request.resource.data.estado == 'cancelada')
+        );
       allow delete: if false;
     }
     match /horarios/{horarioId} {
