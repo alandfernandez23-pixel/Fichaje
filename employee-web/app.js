@@ -1165,4 +1165,60 @@ onSnapshot(doc(db, "configuracion", "contacto"), (snap) => {
   } else {
     linkWhatsapp.classList.add("oculto");
   }
+  // --- Autoservicio: guardar el teléfono/apikey de CallMeBot para
+// que el sistema pueda llamar automáticamente si alguien se olvida
+// de fichar. Cada profe carga el suyo propio en avisosLlamada/{uid}. ---
+const inputTelefonoAviso = document.getElementById("input-telefono-aviso");
+const inputApikeyAviso = document.getElementById("input-apikey-aviso");
+const btnGuardarAvisoLlamada = document.getElementById("btn-guardar-aviso-llamada");
+const confirmacionAvisoLlamada = document.getElementById("confirmacion-aviso-llamada");
+
+// Precargar los datos si ya los había guardado antes.
+onAuthStateChanged(auth, async (user) => {
+  if (!user || !inputTelefonoAviso) return;
+  try {
+    const snap = await getDocs(query(collection(db, "avisosLlamada")));
+    const propio = snap.docs.find((d) => d.id === user.uid);
+    if (propio) {
+      inputTelefonoAviso.value = propio.data().telefono || "";
+      inputApikeyAviso.value = propio.data().apikey || "";
+    }
+  } catch (err) {
+    console.error("No se pudo precargar el aviso por llamada:", err);
+  }
+});
+
+btnGuardarAvisoLlamada?.addEventListener("click", async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+  const telefono = inputTelefonoAviso.value.replace(/[^\d]/g, "");
+  const apikey = inputApikeyAviso.value.trim();
+
+  if (telefono.length < 8 || !apikey) {
+    confirmacionAvisoLlamada.textContent = "Completá el teléfono (con código de país) y el apikey.";
+    confirmacionAvisoLlamada.classList.remove("oculto");
+    confirmacionAvisoLlamada.classList.add("error");
+    return;
+  }
+
+  btnGuardarAvisoLlamada.setAttribute("disabled", "true");
+  try {
+    await setDoc(doc(db, "avisosLlamada", user.uid), {
+      email: user.email,
+      nombre: user.displayName || user.email,
+      telefono,
+      apikey,
+      actualizadoEn: serverTimestamp(),
+    });
+    confirmacionAvisoLlamada.textContent = "Listo, guardado. Ya te podemos avisar por llamada.";
+    confirmacionAvisoLlamada.classList.remove("oculto", "error");
+  } catch (err) {
+    console.error(err);
+    confirmacionAvisoLlamada.textContent = "No se pudo guardar. Probá de nuevo.";
+    confirmacionAvisoLlamada.classList.remove("oculto");
+    confirmacionAvisoLlamada.classList.add("error");
+  } finally {
+    btnGuardarAvisoLlamada.removeAttribute("disabled");
+  }
+});
 });
