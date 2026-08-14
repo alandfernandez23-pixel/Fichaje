@@ -467,7 +467,7 @@ const EMAILJS_PUBLIC_KEY = "DenrUpVwH3era9YKa";
 const EMAILJS_SERVICE_ID = "service_7k9myip";
 const EMAILJS_TEMPLATE_NUEVA_SOLICITUD = "template_9pq88u3";
 // Template nuevo, todavía sin crear: para avisar de un pedido de reemplazo.
-const EMAILJS_TEMPLATE_REEMPLAZO = "PEGAR_TEMPLATE_ID_REEMPLAZO_ACA";
+const EMAILJS_TEMPLATE_REEMPLAZO = "template_x4ef09w";
 
 let emailjsListo = false;
 function inicializarEmailJS() {
